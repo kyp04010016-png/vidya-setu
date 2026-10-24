@@ -1,0 +1,175 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Public profile for users (students, tutors, admins) without sensitive PII.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "role": { "type": "string", "enum": ["ADMIN", "TUTOR", "STUDENT"] },
+        "isActive": { "type": "boolean" },
+        "emailVerified": { "type": "boolean" },
+        "phoneVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "role", "isActive", "emailVerified", "phoneVerified", "createdAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Strictly isolated PII document for a user (email, mobile, backup metadata).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "mobile": { "type": "string", "minLength": 5, "maxLength": 20 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "mobile", "createdAt"]
+    },
+    "TutorProfile": {
+      "title": "TutorProfile",
+      "description": "Publicly searchable home tutor listing profile.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 120, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "age": { "type": "number" },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "experienceYrs": { "type": "number" },
+        "qualification": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "bio": { "type": "string", "minLength": 10, "maxLength": 2000 },
+        "hourlyRate": { "type": "number" },
+        "cityId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "cityName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "localityName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "tuitionType": { "type": "string", "enum": ["HOME_TUITION", "AT_TUTOR_HOME", "AT_INSTITUTE", "ONLINE"] },
+        "courses": { "type": "array", "description": "Bounded list of up to 10 courses" },
+        "subjects": { "type": "array", "description": "Bounded list of up to 10 subjects" },
+        "isFeatured": { "type": "boolean" },
+        "isApproved": { "type": "boolean" },
+        "ratingAvg": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "name",
+        "slug",
+        "gender",
+        "experienceYrs",
+        "qualification",
+        "bio",
+        "hourlyRate",
+        "cityId",
+        "cityName",
+        "localityName",
+        "tuitionType",
+        "courses",
+        "subjects",
+        "isFeatured",
+        "isApproved",
+        "ratingAvg",
+        "reviewCount",
+        "createdAt"
+      ]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Student/parent inquiry sent to a tutor, containing PII isolated to sender, recipient tutor, or admin.",
+      "type": "object",
+      "properties": {
+        "tutorId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tutorUserId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tutorName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "mobile": { "type": "string", "minLength": 5, "maxLength": 20 },
+        "message": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["NEW", "READ", "REPLIED", "CLOSED"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tutorId", "tutorUserId", "tutorName", "userId", "name", "email", "mobile", "message", "status", "createdAt"]
+    },
+    "TuitionRequirement": {
+      "title": "TuitionRequirement",
+      "description": "Tuition requirement posted by a student or parent.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "cityId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "cityName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "locality": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "course": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "subjects": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "budget": { "type": "number" },
+        "message": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["OPEN", "ASSIGNED", "CLOSED"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "studentName", "cityId", "cityName", "locality", "course", "subjects", "budget", "message", "status", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Student review for a tutor.",
+      "type": "object",
+      "properties": {
+        "tutorId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reviewerName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "minLength": 3, "maxLength": 1000 },
+        "isApproved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tutorId", "userId", "reviewerName", "rating", "comment", "isApproved", "createdAt"]
+    },
+    "DataBackupSnapshot": {
+      "title": "DataBackupSnapshot",
+      "description": "Encrypted/structured admin backup record in Asmuth Panel for user data recovery.",
+      "type": "object",
+      "properties": {
+        "createdByUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "label": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "recordCount": { "type": "number" },
+        "checksum": { "type": "string", "minLength": 6, "maxLength": 64 },
+        "payloadJson": { "type": "string", "minLength": 2, "maxLength": 500000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdByUid", "label", "recordCount", "checksum", "payloadJson", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Public user profiles without PII."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Isolated user PII (email, mobile) accessible only to owner or admin."
+    },
+    "/tutors/{tutorId}": {
+      "schema": { "$ref": "#/entities/TutorProfile" },
+      "description": "Publicly searchable tutor directory profiles."
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/Inquiry" },
+      "description": "Private student-to-tutor inquiries."
+    },
+    "/requirements/{requirementId}": {
+      "schema": { "$ref": "#/entities/TuitionRequirement" },
+      "description": "Tuition requirements posted by students/parents."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Tutor ratings and reviews."
+    },
+    "/backups/{backupId}": {
+      "schema": { "$ref": "#/entities/DataBackupSnapshot" },
+      "description": "Admin data backup snapshots for Asmuth recovery."
+    }
+  }
+}

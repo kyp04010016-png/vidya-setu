@@ -1,0 +1,400 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Pillar 1: Global Safety Net (Default-Deny Catch-All)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'kyp04010016@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Pillar 2: Validation Blueprints (Anti-Update-Gap)
+    function isValidUserPublic(data) {
+      return data.keys().hasAll(['uid', 'name', 'role', 'isActive', 'emailVerified', 'phoneVerified', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'name', 'role', 'isActive', 'emailVerified', 'phoneVerified', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.role is string && (data.role == 'STUDENT' || data.role == 'TUTOR' || data.role == 'ADMIN') &&
+        data.isActive is bool &&
+        data.emailVerified is bool &&
+        data.phoneVerified is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'email', 'mobile', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'mobile', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+        data.mobile is string && data.mobile.size() >= 5 && data.mobile.size() <= 20 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidTutorProfile(data) {
+      return data.keys().hasAll([
+          'userId', 'name', 'slug', 'gender', 'experienceYrs', 'qualification', 'bio',
+          'hourlyRate', 'cityId', 'cityName', 'localityName', 'tuitionType',
+          'courses', 'subjects', 'isFeatured', 'isApproved', 'ratingAvg', 'reviewCount', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId', 'name', 'slug', 'age', 'gender', 'experienceYrs', 'qualification', 'bio',
+          'hourlyRate', 'cityId', 'cityName', 'localityName', 'tuitionType',
+          'courses', 'subjects', 'isFeatured', 'isApproved', 'ratingAvg', 'reviewCount', 'createdAt'
+        ]) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 120 && data.slug.matches('^[a-zA-Z0-9_\\-]+$') &&
+        (!('age' in data) || (data.age is int && data.age >= 18 && data.age <= 90)) &&
+        data.gender is string && (data.gender == 'Male' || data.gender == 'Female' || data.gender == 'Other') &&
+        data.experienceYrs is int && data.experienceYrs >= 0 && data.experienceYrs <= 60 &&
+        data.qualification is string && data.qualification.size() >= 2 && data.qualification.size() <= 160 &&
+        data.bio is string && data.bio.size() >= 10 && data.bio.size() <= 2000 &&
+        data.hourlyRate is int && data.hourlyRate >= 50 && data.hourlyRate <= 25000 &&
+        data.cityId is string && data.cityId.size() >= 1 && data.cityId.size() <= 128 && data.cityId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.cityName is string && data.cityName.size() >= 2 && data.cityName.size() <= 80 &&
+        data.localityName is string && data.localityName.size() >= 2 && data.localityName.size() <= 100 &&
+        data.tuitionType is string && (
+          data.tuitionType == 'HOME_TUITION' ||
+          data.tuitionType == 'AT_TUTOR_HOME' ||
+          data.tuitionType == 'AT_INSTITUTE' ||
+          data.tuitionType == 'ONLINE'
+        ) &&
+        data.courses is list && data.courses.size() >= 1 && data.courses.size() <= 10 &&
+        data.courses[0] is string && data.courses[0].size() >= 1 && data.courses[0].size() <= 80 &&
+        data.subjects is list && data.subjects.size() >= 1 && data.subjects.size() <= 10 &&
+        data.subjects[0] is string && data.subjects[0].size() >= 1 && data.subjects[0].size() <= 80 &&
+        data.isFeatured is bool &&
+        data.isApproved is bool &&
+        (data.ratingAvg is int || data.ratingAvg is float) && data.ratingAvg >= 0 && data.ratingAvg <= 5 &&
+        data.reviewCount is int && data.reviewCount >= 0 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidInquiry(data) {
+      return data.keys().hasAll([
+          'tutorId', 'tutorUserId', 'tutorName', 'userId',
+          'name', 'email', 'mobile', 'message', 'status', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'tutorId', 'tutorUserId', 'tutorName', 'userId',
+          'name', 'email', 'mobile', 'message', 'status', 'createdAt'
+        ]) &&
+        data.tutorId is string && data.tutorId.size() >= 1 && data.tutorId.size() <= 128 && data.tutorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.tutorUserId is string && data.tutorUserId.size() >= 1 && data.tutorUserId.size() <= 128 && data.tutorUserId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.tutorName is string && data.tutorName.size() >= 1 && data.tutorName.size() <= 100 &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+        data.mobile is string && data.mobile.size() >= 5 && data.mobile.size() <= 20 &&
+        data.message is string && data.message.size() >= 5 && data.message.size() <= 1000 &&
+        data.status is string && (
+          data.status == 'NEW' ||
+          data.status == 'READ' ||
+          data.status == 'REPLIED' ||
+          data.status == 'CLOSED'
+        ) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidRequirement(data) {
+      return data.keys().hasAll([
+          'userId', 'studentName', 'cityId', 'cityName', 'locality',
+          'course', 'subjects', 'budget', 'message', 'status', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId', 'studentName', 'cityId', 'cityName', 'locality',
+          'course', 'subjects', 'budget', 'message', 'status', 'createdAt'
+        ]) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.studentName is string && data.studentName.size() >= 2 && data.studentName.size() <= 100 &&
+        data.cityId is string && data.cityId.size() >= 1 && data.cityId.size() <= 128 && data.cityId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.cityName is string && data.cityName.size() >= 2 && data.cityName.size() <= 80 &&
+        data.locality is string && data.locality.size() >= 2 && data.locality.size() <= 100 &&
+        data.course is string && data.course.size() >= 1 && data.course.size() <= 100 &&
+        data.subjects is string && data.subjects.size() >= 1 && data.subjects.size() <= 200 &&
+        data.budget is int && data.budget >= 100 && data.budget <= 100000 &&
+        data.message is string && data.message.size() >= 5 && data.message.size() <= 1000 &&
+        data.status is string && (
+          data.status == 'OPEN' ||
+          data.status == 'ASSIGNED' ||
+          data.status == 'CLOSED'
+        ) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll([
+          'tutorId', 'userId', 'reviewerName', 'rating', 'comment', 'isApproved', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'tutorId', 'userId', 'reviewerName', 'rating', 'comment', 'isApproved', 'createdAt'
+        ]) &&
+        data.tutorId is string && data.tutorId.size() >= 1 && data.tutorId.size() <= 128 && data.tutorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.reviewerName is string && data.reviewerName.size() >= 2 && data.reviewerName.size() <= 100 &&
+        data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() >= 3 && data.comment.size() <= 1000 &&
+        data.isApproved is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidBackup(data) {
+      return data.keys().hasAll([
+          'createdByUid', 'label', 'recordCount', 'checksum', 'payloadJson', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'createdByUid', 'label', 'recordCount', 'checksum', 'payloadJson', 'createdAt'
+        ]) &&
+        data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 && data.createdByUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.label is string && data.label.size() >= 2 && data.label.size() <= 120 &&
+        data.recordCount is int && data.recordCount >= 0 && data.recordCount <= 100000 &&
+        data.checksum is string && data.checksum.size() >= 6 && data.checksum.size() <= 64 &&
+        data.payloadJson is string && data.payloadJson.size() >= 2 && data.payloadJson.size() <= 500000 &&
+        data.createdAt is timestamp;
+    }
+
+    // Trusted Admin Registry
+    match /admins/{adminId} {
+      allow get: if isOwner(adminId) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin() && isValidId(adminId);
+    }
+
+    // Collection 1: Public User Profiles (PII-Free)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() || (isVerifiedUser() && resource.data.uid == request.auth.uid);
+      allow create: if isValidId(userId) &&
+        isValidUserPublic(incoming()) &&
+        incoming().uid == userId &&
+        incoming().createdAt == request.time &&
+        (
+          (isOwner(userId) && (incoming().role == 'STUDENT' || incoming().role == 'TUTOR') && incoming().isActive == true) ||
+          isAdmin()
+        );
+      allow update: if isValidId(userId) &&
+        isValidUserPublic(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phoneVerified'])) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+
+      // Subcollection: Isolated User PII (Pillar 1 Master Gate + Pillar 6 PII Isolation)
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && (
+          (isOwner(userId) && get(/databases/$(database)/documents/users/$(userId)).data.isActive == true) ||
+          isAdmin()
+        );
+        allow list: if isAdmin() || (isOwner(userId) && resource.data.uid == request.auth.uid);
+        allow create: if isValidId(userId) && isValidId(docId) &&
+          isValidUserPrivate(incoming()) &&
+          incoming().uid == userId &&
+          incoming().createdAt == request.time &&
+          (
+            (isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId))) ||
+            isAdmin()
+          );
+        allow update: if isValidId(userId) && isValidId(docId) &&
+          isValidUserPrivate(incoming()) &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt &&
+          (
+            (isOwner(userId) &&
+              get(/databases/$(database)/documents/users/$(userId)).data.isActive == true &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['mobile'])
+            ) ||
+            isAdmin()
+          );
+        allow delete: if isValidId(userId) && isValidId(docId) && isAdmin();
+      }
+    }
+
+    // Collection 2: Publicly Searchable Tutor Profiles
+    match /tutors/{tutorId} {
+      allow get: if isValidId(tutorId) && (resource.data.isApproved == true || isOwner(resource.data.userId) || isAdmin());
+      allow list: if resource.data.isApproved == true || (isVerifiedUser() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if isValidId(tutorId) &&
+        isValidTutorProfile(incoming()) &&
+        incoming().createdAt == request.time &&
+        (
+          (isOwner(incoming().userId) && incoming().isApproved == false && incoming().isFeatured == false && exists(/databases/$(database)/documents/users/$(incoming().userId))) ||
+          isAdmin()
+        );
+      allow update: if isValidId(tutorId) &&
+        isValidTutorProfile(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (isOwner(existing().userId) &&
+            incoming().isApproved == existing().isApproved &&
+            incoming().isFeatured == existing().isFeatured &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'age', 'gender', 'experienceYrs', 'qualification', 'bio',
+              'hourlyRate', 'cityId', 'cityName', 'localityName', 'tuitionType', 'courses', 'subjects'
+            ])
+          ) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(tutorId) && isAdmin();
+    }
+
+    // Collection 3: Student-to-Tutor Inquiries (Contains PII -> Isolated to Sender, Tutor, or Admin)
+    match /inquiries/{inquiryId} {
+      allow get: if isValidId(inquiryId) && (
+        isOwner(resource.data.userId) ||
+        isOwner(resource.data.tutorUserId) ||
+        isAdmin()
+      );
+      allow list: if isAdmin() || (
+        isVerifiedUser() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.tutorUserId == request.auth.uid
+        )
+      );
+      allow create: if isValidId(inquiryId) &&
+        isValidInquiry(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().status == 'NEW' &&
+        (
+          (isOwner(incoming().userId) && exists(/databases/$(database)/documents/tutors/$(incoming().tutorId))) ||
+          isAdmin()
+        );
+      allow update: if isValidId(inquiryId) &&
+        isValidInquiry(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().tutorId == existing().tutorId &&
+        incoming().tutorUserId == existing().tutorUserId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (existing().status != 'CLOSED' &&
+            isOwner(existing().tutorUserId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+          ) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(inquiryId) && isAdmin();
+    }
+
+    // Collection 4: Student Tuition Requirements
+    match /requirements/{requirementId} {
+      allow get: if isValidId(requirementId) && (
+        resource.data.status == 'OPEN' ||
+        isOwner(resource.data.userId) ||
+        isAdmin()
+      );
+      allow list: if resource.data.status == 'OPEN' ||
+        (isVerifiedUser() && resource.data.userId == request.auth.uid) ||
+        isAdmin();
+      allow create: if isValidId(requirementId) &&
+        isValidRequirement(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().status == 'OPEN' &&
+        (
+          isOwner(incoming().userId) ||
+          isAdmin()
+        );
+      allow update: if isValidId(requirementId) &&
+        isValidRequirement(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (existing().status != 'CLOSED' &&
+            isOwner(existing().userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['budget', 'message', 'status'])
+          ) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(requirementId) && isAdmin();
+    }
+
+    // Collection 5: Tutor Reviews
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && (
+        resource.data.isApproved == true ||
+        isOwner(resource.data.userId) ||
+        isAdmin()
+      );
+      allow list: if resource.data.isApproved == true ||
+        (isVerifiedUser() && resource.data.userId == request.auth.uid) ||
+        isAdmin();
+      allow create: if isValidId(reviewId) &&
+        isValidReview(incoming()) &&
+        incoming().createdAt == request.time &&
+        (
+          (isOwner(incoming().userId) && incoming().isApproved == false && exists(/databases/$(database)/documents/tutors/$(incoming().tutorId))) ||
+          isAdmin()
+        );
+      allow update: if isValidId(reviewId) &&
+        isValidReview(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().tutorId == existing().tutorId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (isOwner(existing().userId) &&
+            incoming().isApproved == existing().isApproved &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'comment'])
+          ) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(reviewId) && isAdmin();
+    }
+
+    // Collection 6: Asmuth Admin Data Backup Snapshots
+    match /backups/{backupId} {
+      allow get: if isValidId(backupId) && isAdmin();
+      allow list: if isAdmin() && resource.data.recordCount >= 0;
+      allow create: if isValidId(backupId) &&
+        isAdmin() &&
+        isValidBackup(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(backupId) &&
+        isAdmin() &&
+        isValidBackup(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['label']);
+      allow delete: if isValidId(backupId) && isAdmin();
+    }
+
+    // Connection test probe path
+    match /test/connection {
+      allow get: if true;
+      allow list, create, update, delete: if false;
+    }
+  }
+}

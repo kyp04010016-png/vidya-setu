@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TUTOR
+  STUDENT
+}
+
+enum InquiryStatus {
+  NEW
+  READ
+  REPLIED
+  CLOSED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum TuitionType {
+  HOME_TUITION
+  AT_TUTOR_HOME
+  AT_INSTITUTE
+  ONLINE
+}
+
+model User {
+  id            String               @id @default(cuid())
+  name          String
+  email         String               @unique
+  mobile        String?
+  password      String
+  role          Role                 @default(STUDENT)
+  isActive      Boolean              @default(true)
+  emailVerified Boolean              @default(false)
+  phoneVerified Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  tutor         Tutor?
+  inquiries     Inquiry[]
+  reviews       Review[]
+  savedTutors   SavedTutor[]
+  requirements  TuitionRequirement[]
+  payments      Payment[]
+}
+
+model Tutor {
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug          String         @unique
+  age           Int?
+  gender        String?
+  experienceYrs Int            @default(0)
+  qualification String?
+  bio           String?
+  photoUrl      String?
+  hourlyRate    Int?
+  cityId        String
+  city          City           @relation(fields: [cityId], references: [id])
+  localityId    String?
+  locality      Locality?      @relation(fields: [localityId], references: [id])
+  tuitionType   TuitionType    @default(HOME_TUITION)
+  isFeatured    Boolean        @default(false)
+  isApproved    Boolean        @default(false)
+  lastLogin     DateTime?
+  createdAt     DateTime       @default(now())
+  courses       TutorCourse[]
+  subjects      TutorSubject[]
+  reviews       Review[]
+  inquiries     Inquiry[]
+  savedBy       SavedTutor[]
+}
+
+model City {
+  id         String     @id @default(cuid())
+  name       String     @unique
+  slug       String     @unique
+  isActive   Boolean    @default(true)
+  localities Locality[]
+  tutors     Tutor[]
+}
+
+model Locality {
+  id     String  @id @default(cuid())
+  name   String
+  cityId String
+  city   City    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  tutors Tutor[]
+
+  @@unique([name, cityId])
+}
+
+model Course {
+  id       String        @id @default(cuid())
+  name     String        @unique
+  isActive Boolean       @default(true)
+  tutors   TutorCourse[]
+}
+
+model Subject {
+  id       String         @id @default(cuid())
+  name     String         @unique
+  isActive Boolean        @default(true)
+  tutors   TutorSubject[]
+}
+
+model TutorCourse {
+  tutorId  String
+  courseId String
+  tutor    Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([tutorId, courseId])
+}
+
+model TutorSubject {
+  tutorId   String
+  subjectId String
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([tutorId, subjectId])
+}
+
+model Inquiry {
+  id        String        @id @default(cuid())
+  tutorId   String
+  tutor     Tutor         @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id])
+  name      String
+  email     String
+  mobile    String
+  message   String
+  status    InquiryStatus @default(NEW)
+  createdAt DateTime      @default(now())
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  tutorId    String
+  tutor      Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  rating     Int      @default(5)
+  comment    String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model SavedTutor {
+  userId  String
+  tutorId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tutorId])
+}
+
+model TuitionRequirement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cityId    String
+  locality  String?
+  course    String
+  subjects  String
+  budget    Int?
+  message   String?
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id])
+  planId     String?
+  amount     Int
+  currency   String        @default("INR")
+  status     PaymentStatus @default(PENDING)
+  razorpayId String?
+  createdAt  DateTime      @default(now())
+}
+
+model PricingPlan {
+  id           String   @id @default(cuid())
+  name         String
+  price        Int
+  durationDays Int
+  features     String[]
+  isActive     Boolean  @default(true)
+}
+
+model Setting {
+  id    String @id @default("global")
+  key   String @unique
+  value String
+}
+
+model Page {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  content   String
+  metaTitle String?
+  metaDesc  String?
+  isActive  Boolean @default(true)
+}
+
+model Banner {
+  id        String  @id @default(cuid())
+  imageUrl  String
+  link      String?
+  title     String?
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String?
+  content     String
+  coverUrl    String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model EmailTemplate {
+  id      String @id @default(cuid())
+  key     String @unique
+  subject String
+  body    String
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  module    String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model SecuritySetting {
+  id               String   @id @default("global")
+  twoFactorEnabled Boolean  @default(false)
+  loginAttempts    Int      @default(5)
+  lockoutMinutes   Int      @default(15)
+  sessionTimeout   Int      @default(30)
+  ipWhitelist      String[]
+  passwordPolicy   String   @default("min8_upper_lower_num_special")
+  auditLogEnabled  Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+}
+
+model SocialLink {
+  id        String  @id @default(cuid())
+  platform  String
+  url       String
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+}
+
+model WhatsAppSetting {
+  id             String   @id @default("global")
+  number         String
+  defaultMessage String   @default("Hello! I need a home tutor.")
+  isActive       Boolean  @default(true)
+  showOnPages    String[]
+  buttonPosition String   @default("bottom-right")
+  buttonColor    String   @default("#25D366")
+  buttonText     String   @default("Chat on WhatsApp")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  mobile    String?
+  subject   String?
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model SeoSetting {
+  id        String   @id @default("global")
+  siteTitle String
+  siteDesc  String
+  ogImage   String?
+  keywords  String?
+  gaId      String?
+  fbPixel   String?
+  gtmId     String?
+  updatedAt DateTime @updatedAt
+}

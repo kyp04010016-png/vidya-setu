@@ -1,0 +1,6 @@
+{
+  "name": "VidyaSetu — Home Tutor Directory & Admin Console",
+  "description": "Production-grade Home Tutor Directory, Student & Tutor Portals, and 20-Module Admin & Asmuth Control Panel with real-time monitoring and data backup.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
